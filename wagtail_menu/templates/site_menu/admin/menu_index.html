@@ -1,0 +1,59 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n wagtailadmin_tags %}
+
+{% block titletag %}{% trans "Menus" %}{% endblock %}
+
+{% block content %}
+    {% trans "Menus" as header_title %}
+    {% include "wagtailadmin/shared/header.html" with title=header_title icon="list-ul" %}
+
+    <div class="nice-padding">
+        {% if menus %}
+            <table class="listing">
+                <thead>
+                    <tr>
+                        <th>{% trans "Name" %}</th>
+                        <th>{% trans "Slug" %}</th>
+                        <th>{% trans "Items" %}</th>
+                        <th>{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for menu in menus %}
+                        <tr>
+                            <td class="title">
+                                <h2>
+                                    <a href="{% url 'site_menu:menu_edit' menu.pk %}">
+                                        {{ menu.name }}
+                                    </a>
+                                </h2>
+                            </td>
+                            <td>
+                                <code>{{ menu.slug }}</code>
+                            </td>
+                            <td>
+                                {{ menu.menu_items.count }} {% trans "items" %}
+                            </td>
+                            <td>
+                                <a href="{% url 'site_menu:menu_edit' menu.pk %}" class="button button-small button-secondary">
+                                    {% trans "Edit" %}
+                                </a>
+                                <a href="{% url 'site_menu:menu_delete' menu.pk %}" class="button button-small button-no">
+                                    {% trans "Delete" %}
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>{% trans "No menus created yet." %}</p>
+        {% endif %}
+
+        <div style="margin-top: 20px;">
+            <a href="{% url 'site_menu:menu_create' %}" class="button bicolor button--icon">
+                {% icon name="plus" wrapped=1 %}{% trans "Add Menu" %}
+            </a>
+        </div>
+    </div>
+{% endblock %}

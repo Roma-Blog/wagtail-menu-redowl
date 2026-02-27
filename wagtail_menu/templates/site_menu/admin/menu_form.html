@@ -1,0 +1,23 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n wagtailadmin_tags %}
+
+{% block titletag %}{{ title }}{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title=title icon="list-ul" %}
+
+    <div class="nice-padding">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            <ul class="fields">
+                {% for field in form %}
+                    <li>{% include "wagtailadmin/shared/field.html" %}</li>
+                {% endfor %}
+            </ul>
+            
+            <button type="submit" class="button">{% trans "Save" %}</button>
+            <a href="{% url 'site_menu:menu_index' %}" class="button button-secondary">{% trans "Cancel" %}</a>
+        </form>
+    </div>
+{% endblock %}

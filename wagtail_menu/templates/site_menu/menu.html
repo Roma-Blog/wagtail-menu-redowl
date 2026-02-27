@@ -1,0 +1,22 @@
+{% comment %}
+Базовый шаблон для отображения меню.
+
+Использование:
+    {% load menu_tags %}
+    {% render_menu 'main_menu' %}
+
+Контекст:
+    menu - объект меню
+    menu_items - список пунктов меню с детьми
+    request - HTTP запрос
+{% endcomment %}
+
+{% if menu_items %}
+<nav class="site-menu">
+    <ul class="site-menu__list">
+        {% for menu_item in menu_items %}
+            {% include "site_menu/menu_item.html" with item=menu_item %}
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}

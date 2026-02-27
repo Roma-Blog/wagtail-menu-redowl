@@ -1,0 +1,59 @@
+{% load i18n menu_tags %}
+
+{# Рекурсивный шаблон для пункта меню с детьми #}
+<div class="menu-item-wrapper" data-item-id="{{ item.pk }}">
+    <div class="menu-item-row">
+        <div class="menu-item-body">
+            <div class="menu-item-controls">
+                <button type="button" 
+                        class="button button-small button-secondary move-btn move-up"
+                        data-item-id="{{ item.pk }}"
+                        title="{% trans 'Move up' %}">
+                    🠵
+                </button>
+                <button type="button" 
+                        class="button button-small button-secondary move-btn move-down"
+                        data-item-id="{{ item.pk }}"
+                        title="{% trans 'Move down' %}">
+                    🠷
+                </button>
+            </div>
+            
+            <div class="menu-item-info">
+                <div class="menu-item-title">
+                    {{ item.get_title }}
+                    {% if item.open_in_new_tab %}
+                        <span title="{% trans 'Opens in new tab' %}">🔗</span>
+                    {% endif %}
+                </div>
+                <div class="menu-item-meta">
+                    <strong>{% trans "Type:" %}</strong> {{ item.get_link_type_display }} | 
+                    <strong>{% trans "URL:" %}</strong> {{ item.get_url }} |
+                    <strong>{% trans "Order:" %}</strong> {{ item.sort_order }}
+                </div>
+            </div>
+            
+            <div class="menu-item-actions">
+                <a href="{% url 'site_menu:menu_item_edit' item.menu.pk item.pk %}" 
+                   class="button button-small button-secondary">
+                    {% trans "Edit" %}
+                </a>
+                <a href="{% url 'site_menu:menu_item_delete' item.menu.pk item.pk %}" 
+                   class="button button-small button-no">
+                    {% trans "Delete" %}
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {# Рекурсивно рендерим детей #}
+    {% with children=all_items|filter_children:item %}
+        {% if children %}
+            <div class="menu-item-children">
+                {% for child in children %}
+                    {% include "site_menu/admin/menu_item_row.html" with item=child all_items=all_items %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+</div>

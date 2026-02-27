@@ -1,0 +1,22 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n wagtailadmin_tags %}
+
+{% block titletag %}{{ title }}{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title=title icon="warning" %}
+
+    <div class="nice-padding">
+        <p>
+            {% blocktrans with title=item.get_title %}
+                Are you sure you want to delete the menu item "{{ title }}"?
+            {% endblocktrans %}
+        </p>
+        
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="button button-no">{% trans "Yes, delete" %}</button>
+            <a href="{% url 'site_menu:menu_edit' menu.pk %}" class="button button-secondary">{% trans "No, don't delete" %}</a>
+        </form>
+    </div>
+{% endblock %}

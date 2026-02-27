@@ -1,0 +1,29 @@
+{% comment %}
+Шаблон пункта меню (рекурсивный).
+
+Контекст:
+    item - словарь с данными пункта меню
+        item.title - заголовок
+        item.url - URL
+        item.open_in_new_tab - открывать в новой вкладке
+        item.css_class - дополнительные CSS классы
+        item.has_children - есть ли дети
+        item.children - список детей
+        item.level - уровень вложенности
+{% endcomment %}
+
+<li class="site-menu__item{% if item.has_children %} site-menu__item--has-children{% endif %} {{ item.css_class }}">
+    <a href="{{ item.url }}" 
+       class="site-menu__link"
+       {% if item.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %}>
+        {{ item.title }}
+    </a>
+    
+    {% if item.has_children and item.children %}
+        <ul class="site-menu__submenu">
+            {% for child in item.children %}
+                {% include "site_menu/menu_item.html" with item=child %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>

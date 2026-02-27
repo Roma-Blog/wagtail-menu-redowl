@@ -1,0 +1,269 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n wagtailadmin_tags %}
+
+{% block titletag %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+    <style>
+        .menu-items-tree {
+            margin-top: 20px;
+            max-width: 1000px;
+        }
+        .menu-item-wrapper {
+            margin-bottom: 8px;
+        }
+        .menu-item-row {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        .menu-item-row:hover {
+            border: 1px solid var(--w-color-surface-button-default);
+        }
+        .menu-item-children {
+            margin-left: 30px;
+            margin-top: 8px;
+            border-left: 2px solid #e0e0e0;
+            padding-left: 10px;
+        }
+        .menu-item-controls {
+            display: flex;
+            gap: 5px;
+            margin-right: 15px;
+        }
+        .menu-item-info {
+            flex-grow: 1;
+        }
+        .menu-item-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .menu-item-meta {
+            font-size: 12px;
+            color: #666;
+        }
+        .menu-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .menu-item-body {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        .move-btn {
+            cursor: pointer;
+            padding: 3px 8px;
+            font-size: 14px;
+            line-height: 1;
+        }
+        .move-btn:hover {
+            background: #0070d2;
+            color: white;
+        }
+        .move-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .saving-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #0070d2;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            display: none;
+            z-index: 10000;
+        }
+        .saving-indicator.show {
+            display: block;
+        }
+        .saving-indicator.success {
+            background: #00a652;
+        }
+        .saving-indicator.error {
+            background: #c62828;
+        }
+        .menu-item-wrapper.dragging > .menu-item-row {
+            opacity: 0.5;
+            background: #e0e0e0;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title=title icon="list-ul" %}
+
+    <div class="nice-padding">
+        {# Форма редактирования меню #}
+        <form method="post" id="menu-form">
+            {% csrf_token %}
+            
+            <ul class="fields">
+                {% for field in form %}
+                    <li>{% include "wagtailadmin/shared/field.html" %}</li>
+                {% endfor %}
+            </ul>
+            
+            <button type="submit" class="button">{% trans "Save Menu" %}</button>
+        </form>
+
+        {# Список пунктов меню #}
+        <div class="menu-items-tree">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>{% trans "Menu Items" %}</h2>
+                <a href="{% url 'site_menu:menu_item_create' menu.pk %}" class="button bicolor button--icon">
+                    {% icon name="plus" wrapped=1 %}{% trans "Add Item" %}
+                </a>
+            </div>
+
+            {% if menu_items %}
+                <div class="menu-items-list" id="menu-items-list" data-menu-id="{{ menu.pk }}">
+                    {% for item in menu_items %}
+                        {% if item.level == 0 %}
+                            {# Рендерим пункт с возможными детьми #}
+                            {% include "site_menu/admin/menu_item_row.html" with item=item all_items=menu_items %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>{% trans "No menu items yet. Click 'Add Item' to create one." %}</p>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 20px;">
+            <a href="{% url 'site_menu:menu_index' %}" class="button button-secondary">{% trans "Back to Menus" %}</a>
+        </div>
+    </div>
+    
+    {# Индикатор сохранения #}
+    <div class="saving-indicator" id="saving-indicator"></div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuId = document.getElementById('menu-items-list')?.dataset.menuId;
+            const savingIndicator = document.getElementById('saving-indicator');
+            
+            // CSRF токен
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            // Показываем индикатор сохранения
+            function showSavingIndicator(message, type = 'saving') {
+                if (!savingIndicator) return;
+                savingIndicator.textContent = message;
+                savingIndicator.className = 'saving-indicator show ' + type;
+                
+                if (type !== 'saving') {
+                    setTimeout(() => {
+                        savingIndicator.className = 'saving-indicator';
+                    }, 2000);
+                }
+            }
+            
+            // AJAX перемещение пункта + визуальное перемещение в DOM
+            function moveItem(itemId, direction) {
+                if (!menuId) {
+                    console.error('No menu ID');
+                    return;
+                }
+                
+                // Находим wrapper элемента (включая всех детей)
+                const currentWrapper = document.querySelector(`.menu-item-wrapper[data-item-id="${itemId}"]`);
+                if (!currentWrapper) {
+                    console.error('Item wrapper not found:', itemId);
+                    return;
+                }
+                
+                const url = `/admin/menus/${menuId}/items/${itemId}/move-ajax/${direction}/`;
+                
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Визуально перемещаем ВЕСЬ wrapper (вместе с детьми)
+                        const allWrappers = Array.from(document.querySelectorAll('#menu-items-list > .menu-item-wrapper'));
+                        const currentIndex = allWrappers.indexOf(currentWrapper);
+                        
+                        if (direction === 'up' && currentIndex > 0) {
+                            const prevWrapper = allWrappers[currentIndex - 1];
+                            document.getElementById('menu-items-list').insertBefore(currentWrapper, prevWrapper);
+                        } else if (direction === 'down' && currentIndex < allWrappers.length - 1) {
+                            const nextWrapper = allWrappers[currentIndex + 1];
+                            document.getElementById('menu-items-list').insertBefore(currentWrapper, nextWrapper.nextSibling);
+                        }
+                        
+                        showSavingIndicator('✓ ' + data.message, 'success');
+                        updateMoveButtons();
+                    } else {
+                        showSavingIndicator('✗ ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showSavingIndicator('✗ Error moving item', 'error');
+                });
+            }
+            
+            // Обновляем состояние кнопок перемещения
+            function updateMoveButtons() {
+                // Получаем только элементы верхнего уровня
+                const topLevelWrappers = document.querySelectorAll('#menu-items-list > .menu-item-wrapper');
+                
+                // Для каждого wrapper находим кнопку и обновляем disabled
+                topLevelWrappers.forEach((wrapper, index) => {
+                    const upBtn = wrapper.querySelector(':scope > .menu-item-row .move-up');
+                    const downBtn = wrapper.querySelector(':scope > .menu-item-row .move-down');
+                    
+                    if (upBtn) upBtn.disabled = index === 0;
+                    if (downBtn) downBtn.disabled = index === topLevelWrappers.length - 1;
+                });
+            }
+            
+            // Инициализация кнопок при загрузке
+            function initMoveButtons() {
+                document.querySelectorAll('.move-up').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const itemId = this.dataset.itemId;
+                        moveItem(itemId, 'up');
+                    });
+                });
+                
+                document.querySelectorAll('.move-down').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const itemId = this.dataset.itemId;
+                        moveItem(itemId, 'down');
+                    });
+                });
+                
+                // Обновляем disabled состояние при загрузке
+                updateMoveButtons();
+            }
+            
+            initMoveButtons();
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n wagtailadmin_tags %}
+
+{% block titletag %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+    {{ form.media.css }}
+    <style>
+        .link-type-field {
+            margin-bottom: 20px;
+        }
+        .url-field, .page-field {
+            margin-bottom: 20px;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title=title icon="list-ul" %}
+
+    <div class="nice-padding">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <ul class="fields">
+                {% for field in form %}
+                    <li>
+                        {% include "wagtailadmin/shared/field.html" %}
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <button type="submit" class="button">
+                {% if action == 'create' %}
+                    {% trans "Add Item" %}
+                {% else %}
+                    {% trans "Save Changes" %}
+                {% endif %}
+            </button>
+            <a href="{% url 'site_menu:menu_edit' menu.pk %}" class="button button-secondary">
+                {% trans "Cancel" %}
+            </a>
+        </form>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ form.media.js }}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const linkTypeSelect = document.querySelector('.link-type-selector');
+            const urlInput = document.querySelector('.url-input');
+            // PageChooser создаёт div с классом 'page-chooser' или input с data-page-chooser
+            const pageChooser = document.querySelector('[data-page-chooser], .page-chooser, input[id*="_page"]');
+            
+            function toggleFields() {
+                const linkType = linkTypeSelect ? linkTypeSelect.value : '';
+                
+                if (!urlInput) return;
+                
+                const urlLi = urlInput.closest('li');
+                const pageLi = pageChooser ? pageChooser.closest('li') : null;
+
+                if (linkType === 'page') {
+                    if (pageLi) pageLi.style.display = 'block';
+                    if (urlLi) urlLi.style.display = 'none';
+                } else if (linkType === 'custom' || linkType === 'anchor') {
+                    if (pageLi) pageLi.style.display = 'none';
+                    if (urlLi) urlLi.style.display = 'block';
+                }
+            }
+
+            if (linkTypeSelect) {
+                linkTypeSelect.addEventListener('change', toggleFields);
+                toggleFields();
+            }
+        });
+    </script>
+{% endblock %}
